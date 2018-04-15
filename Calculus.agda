@@ -61,8 +61,7 @@ force (beta t ρ v) = eval t (ρ , v)
 
 data Nf (Γ : Cxt) : Ty → Set where
   lam  : ∀{a b}  (n  : Nf (Γ , a) b)  → Nf Γ (a ⇒ b)
-  ne   :         (m  : Ne Nf Γ ★)     → Nf Γ ★
-
+  ne   : ∀{a}    (m  : Ne Nf Γ a)     → Nf Γ a
 
 data _≤_ : (Γ Δ : Cxt) → Set where
   id    : ∀{Γ}              → Γ ≤ Γ
@@ -114,17 +113,17 @@ wk       =  weak id
 weakVal : ∀{Δ a c} → Val Δ c → Val (Δ , a) c
 weakVal  =  val≤ wk
 
-readback    : ∀{i Γ a}    → Val Γ a        → Delay i (Nf Γ a)
-nereadback  : ∀{i Γ a}    → Ne Val Γ a     → Delay i (Ne Nf Γ a)
-eta         : ∀{i Γ a b}  → Val Γ (a ⇒ b)  → ∞Delay i (Nf (Γ , a) b)
+readback    : ∀{i Γ a}      → Val Γ a                  →  Delay i (Nf Γ a)
+nereadback  : ∀{i Γ a}      → Ne Val Γ a               →  Delay i (Ne Nf Γ a)
+lamreadback : ∀{i Γ Γ₁ a b} → Tm (Γ₁ , a) b → Env Γ Γ₁ → ∞Delay i (Nf (Γ , a) b)
 
-readback {a = ★}      (ne w)  = ne   <$> nereadback w
-readback {a = _ ⇒ _}  v       = lam  <$> later (eta v)
+readback (ne w)    = ne  <$> nereadback w
+readback (lam t ρ) = lam <$> later (lamreadback t ρ)
 
-nereadback (var x)            = now (var x)
-nereadback (app w v)          = nereadback w >>= λ m → app m <$> readback v
+nereadback (var x)       = now (var x)
+nereadback (app w v)     = nereadback w >>= λ m → app m <$> readback v
 
-force (eta v)                 = readback =<< apply (weakVal v) (ne (var zero))
+force (lamreadback t ρ)  = readback =<< eval t (env≤ wk ρ , ne (var zero))
 
 ide          :  ∀ Γ → Env Γ Γ
 ide ε        =  ε
