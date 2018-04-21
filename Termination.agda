@@ -276,29 +276,15 @@ mutual
 
   ⟦app⟧  :  ∀{Δ a b} {f? : Delay _ (Val Δ (a ⇒ b))} {u? : Delay _ (Val Δ a)} →
             C⟦ a ⇒ b ⟧ f? → C⟦ a ⟧ u? → C⟦ b ⟧ (f? >>= λ f → u? >>= apply f)
-  ⟦app⟧ {u? = u?} (ne w , w⇓ , rw , rw⇓) (ne u , u⇓ , ru , ru⇓) =
-    let wu⇓ = bind⇓ (λ f → u? >>= apply f)
+  ⟦app⟧ {f? = w?} {u? = u?} (ne w , w⇓ , rw , rw⇓) (u , u⇓ , ⟦u⟧) =
+    let wu⇓ = bind⇓ (λ f → u? >>= (apply f))
                     w⇓
                     (bind⇓ (λ v₂ → now (ne (app w v₂))) u⇓ now⇓)
-        wuC = app rw (ne ru) , bind⇓ (λ m → app m <$> (ne <$> nereadback u))
-                                     rw⇓
-                                     (bind⇓ (λ x' → now (app rw x'))
-                                            (bind⇓ (λ x' → now (ne x')) ru⇓ now⇓)
-                                            now⇓)
-    in  ne (app w (ne u)) , wu⇓ , wuC
-
-  ⟦app⟧ {f? = w?} {u? = f?} (ne w , w⇓ , rw , rw⇓) (lam t ρ , f⇓ , ⟦f⟧) =
-    let wf⇓ = bind⇓ (λ f → f? >>= apply f)
-                    w⇓
-                    (bind⇓ (λ v₂ → now (ne (app w v₂))) f⇓ now⇓)
-        (rif , rif⇓) = reify _ (lam t ρ) ⟦f⟧
-        wfC = (app rw rif)
-            , bind⇓ (λ m → app m <$> (lam <$> later (lamreadback t ρ)))
-                    rw⇓
-                    (bind⇓ (λ x → now (app rw x))
-                           rif⇓
-                           now⇓)
-    in ne (app w (lam t ρ)) , wf⇓ , wfC
+        ru , ru⇓ = reify _ u ⟦u⟧
+        wuC = app rw ru , bind⇓ (λ m → app m <$> readback u)
+                                rw⇓
+                                (map⇓ (app rw) ru⇓)
+    in ne (app w u) , wu⇓ , wuC
 
   ⟦app⟧ {u? = u?} (lam t ρ , f⇓ , ⟦f⟧) (u , u⇓ , ⟦u⟧) =
     let v , v⇓ , ⟦v⟧ = ⟦f⟧ id u ⟦u⟧
