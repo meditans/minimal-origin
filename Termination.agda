@@ -14,7 +14,10 @@ V⟦_⟧_  : ∀{Γ} (a : Ty) → Val Γ a            → Set
 C⟦_⟧_  : ∀{Γ} (a : Ty) → Delay ∞ (Val Γ a)  → Set
 
 V⟦ t ⟧     ne w    = nereadback w ⇓
-V⟦ a ⇒ b ⟧ lam t ρ = ∀{Δ}(η : Δ ≤ _)(u : Val Δ a) → V⟦ a ⟧ u → C⟦ b ⟧ (apply (val≤ η (lam t ρ)) u)
+V⟦ a ⇒ b ⟧ lam t ρ = ∀{Δ}(η : Δ ≤ _)(u : Val Δ a)
+                   → V⟦ a ⟧ u
+                   -- → C⟦ b ⟧ (apply (val≤ η (lam t ρ)) u)
+                   → C⟦ b ⟧ (eval t (env≤ η ρ , u))
 
 C⟦ a ⟧      v?      = ∃ λ v → v? ⇓ v × V⟦ a ⟧ v
 
@@ -251,11 +254,10 @@ nereadback≤⇓ η t {n} p = subst∼⇓ (map⇓ (nen≤ η) p) (nereadback≤ 
 
 V⟦⟧≤ t η (ne w) (w' , w⇓w') = nen≤ η w' , nereadback≤⇓ η w w⇓w'
 V⟦⟧≤ (a ⇒ b) η (lam t ρ) p   η₁ u u⇓ =
-  let v′ , p′ , p′′ = p (η₁ • η) u u⇓ in
-    v′
-  , subst (λ f → apply f u ⇓ fst (p (η₁ • η) u u⇓))
-    ((sym (val≤-• η₁ η (lam t ρ)))) p′
-  , p′′
+  let v , v⇓ , Vv = p (η₁ • η) u u⇓
+  in   v
+     , subst (λ x → eval t (x , u) ⇓ fst (p (η₁ • η) u u⇓)) (sym (env≤-• η₁ η ρ)) v⇓
+     , Vv
 
 E⟦⟧≤ η ε       θ        = _
 E⟦⟧≤ η (ρ , v) (θ , ⟦v⟧) = E⟦⟧≤ η ρ θ , V⟦⟧≤ _ η v ⟦v⟧
@@ -264,89 +266,78 @@ E⟦⟧≤ η (ρ , v) (θ , ⟦v⟧) = E⟦⟧≤ η ρ θ , V⟦⟧≤ _ η v 
 ⟦var⟧ zero    (_ , v)  (_ , v⇓)  = v , now⇓ , v⇓
 ⟦var⟧(suc x)  (ρ , _)  (θ , _ )  = ⟦var⟧ x ρ θ
 
-sound-β  :  ∀ {Δ Γ a b} (t : Tm (Γ , a) b) (ρ : Env Δ Γ) (u : Val Δ a) →
-            C⟦ b ⟧ (eval t  (ρ , u)) → C⟦ b ⟧ (apply (lam t ρ) u)
-sound-β t ρ u (v , v⇓ , ⟦v⟧) = v , later⇓ v⇓ , ⟦v⟧
-
 ⟦abs⟧    :  ∀ {Δ Γ a b} (t : Tm (Γ , a) b) (ρ : Env Δ Γ) (θ : E⟦ Γ ⟧ ρ) →
             (∀{Δ′}(η : Δ′ ≤ Δ)(u : Val Δ′ a)(u⇓ : V⟦ a ⟧ u)
             → C⟦ b ⟧ (eval t (env≤ η ρ , u)))
             → C⟦ a ⇒ b ⟧ (now (lam t ρ))
-⟦abs⟧ t ρ θ ih =  lam t ρ , now⇓ , (λ η u p → sound-β t (env≤ η ρ) u (ih η u p))
+⟦abs⟧ t ρ θ ih = lam t ρ , now⇓ , ih
 
-⟦app⟧  :  ∀{Δ a b} {f? : Delay _ (Val Δ (a ⇒ b))} {u? : Delay _ (Val Δ a)} →
-          C⟦ a ⇒ b ⟧ f? → C⟦ a ⟧ u? → C⟦ b ⟧ (f? >>= λ f → u? >>= apply f)
-⟦app⟧ {u? = u?} (ne w , w⇓ , rw , rw⇓) (ne u , u⇓ , ru , ru⇓) =
-  let wu⇓ = bind⇓ (λ f → u? >>= apply f)
-                  w⇓
-                  (bind⇓ (λ v₂ → now (ne (app w v₂))) u⇓ now⇓)
-      wuC = app rw (ne ru) , bind⇓ (λ m → app m <$> (ne <$> nereadback u))
-                                   rw⇓
-                                   (bind⇓ (λ x' → now (app rw x'))
-                                          (bind⇓ (λ x' → now (ne x')) ru⇓ now⇓)
-                                          now⇓)
-  in  ne (app w (ne u)) , wu⇓ , wuC
+mutual
 
-⟦app⟧ {f? = w?} {u? = f?} (ne w , w⇓ , rw , rw⇓) (lam t ρ , f⇓ , ⟦f⟧) =
-  let wf⇓ = bind⇓ (λ f → f? >>= apply f)
-                  w⇓
-                  (bind⇓ (λ v₂ → now (ne (app w v₂))) f⇓ now⇓)
-      wfC = (app rw {!!}) , {!!}
-  in ne (app w (lam t ρ)) , wf⇓ , wfC
+  ⟦app⟧  :  ∀{Δ a b} {f? : Delay _ (Val Δ (a ⇒ b))} {u? : Delay _ (Val Δ a)} →
+            C⟦ a ⇒ b ⟧ f? → C⟦ a ⟧ u? → C⟦ b ⟧ (f? >>= λ f → u? >>= apply f)
+  ⟦app⟧ {u? = u?} (ne w , w⇓ , rw , rw⇓) (ne u , u⇓ , ru , ru⇓) =
+    let wu⇓ = bind⇓ (λ f → u? >>= apply f)
+                    w⇓
+                    (bind⇓ (λ v₂ → now (ne (app w v₂))) u⇓ now⇓)
+        wuC = app rw (ne ru) , bind⇓ (λ m → app m <$> (ne <$> nereadback u))
+                                     rw⇓
+                                     (bind⇓ (λ x' → now (app rw x'))
+                                            (bind⇓ (λ x' → now (ne x')) ru⇓ now⇓)
+                                            now⇓)
+    in  ne (app w (ne u)) , wu⇓ , wuC
 
-⟦app⟧ {u? = u?} (lam t ρ , f⇓ , ⟦f⟧) (u , u⇓ , ⟦u⟧) =
-  let  v , v⇓ , ⟦v⟧  =  ⟦f⟧ id u ⟦u⟧
-       v⇓′           =  bind⇓  (λ f′ → u? >>= apply f′)
-                               f⇓
-                               (bind⇓  (apply (lam t ρ))
-                                       u⇓
-                                       (subst  (λ f′ → apply f′ u ⇓ v)
-                                               (val≤-id (lam t ρ))
-                                               v⇓))
-  in   v , v⇓′ , ⟦v⟧
+  ⟦app⟧ {f? = w?} {u? = f?} (ne w , w⇓ , rw , rw⇓) (lam t ρ , f⇓ , ⟦f⟧) =
+    let wf⇓ = bind⇓ (λ f → f? >>= apply f)
+                    w⇓
+                    (bind⇓ (λ v₂ → now (ne (app w v₂))) f⇓ now⇓)
+        (rif , rif⇓) = reify _ (lam t ρ) ⟦f⟧
+        wfC = (app rw rif)
+            , bind⇓ (λ m → app m <$> (lam <$> later (lamreadback t ρ)))
+                    rw⇓
+                    (bind⇓ (λ x → now (app rw x))
+                           rif⇓
+                           now⇓)
+    in ne (app w (lam t ρ)) , wf⇓ , wfC
 
-term                 :  ∀ {Δ Γ a} (t : Tm Γ a) (ρ : Env Δ Γ) (θ : E⟦ Γ ⟧ ρ) → C⟦ a ⟧ (eval t ρ)
-term (var x)    ρ θ  =  ⟦var⟧ x ρ θ
-term (abs t)    ρ θ  =  ⟦abs⟧ t ρ θ (λ η u p → term t (env≤ η ρ , u) (E⟦⟧≤ η ρ θ , p))
-term (app t u)  ρ θ  =  ⟦app⟧ (term t ρ θ) (term u ρ θ)
+  ⟦app⟧ {u? = u?} (lam t ρ , f⇓ , ⟦f⟧) (u , u⇓ , ⟦u⟧) =
+    let v , v⇓ , ⟦v⟧ = ⟦f⟧ id u ⟦u⟧
+        v⇓ = bind⇓ (λ f′ → _>>=_ u? (apply f′))
+                   f⇓
+                   (bind⇓ (λ v₁ → later (beta t ρ v₁))
+                          u⇓
+                          (later⇓ (subst (λ x → eval t (x , u) ⇓ fst (⟦f⟧ id u ⟦u⟧))
+                                         (env≤-id ρ)
+                                         v⇓ )))
+    in  v , v⇓ , ⟦v⟧
 
--- mutual
+  term                 :  ∀ {Δ Γ a} (t : Tm Γ a) (ρ : Env Δ Γ) (θ : E⟦ Γ ⟧ ρ) → C⟦ a ⟧ (eval t ρ)
+  term (var x)    ρ θ  =  ⟦var⟧ x ρ θ
+  term (abs t)    ρ θ  =  ⟦abs⟧ t ρ θ (λ η u p → term t (env≤ η ρ , u) (E⟦⟧≤ η ρ θ , p))
+  term (app t u)  ρ θ  =  ⟦app⟧ (term t ρ θ) (term u ρ θ)
 
---   reify : ∀{Γ} a (v : Val Γ a) → V⟦ a ⟧ v → readback v ⇓
---   reify = {!!}
---   -- reify ★        (ne _)  (m , ⇓m)  = ne m , map⇓ ne ⇓m
---   -- reify (a ⇒ b)  f       ⟦f⟧       =
---   --   let u             = ne (var zero)
---   --       ⟦u⟧           = reflect a (var zero) (var zero , now⇓)
---   --       v , v⇓ , ⟦v⟧  = ⟦f⟧ wk u ⟦u⟧
---   --       n , ⇓n        = reify b v ⟦v⟧
---   --       ⇓λn           = later⇓ (bind⇓  (λ x → now (lam x))
---   --         (bind⇓ readback v⇓ ⇓n)
---   --         now⇓)
---   --         in  lam n , ⇓λn
+  reify : ∀{Γ} a (v : Val Γ a) → V⟦ a ⟧ v → readback v ⇓
+  reify a        (ne w) (w/nf , nereadbackW⇓) = ne w/nf , map⇓ ne nereadbackW⇓
+  reify (a ⇒ b) (lam t ρ) ⟦f⟧ =
+    let
+      u   = ne (var zero)
+      ⟦u⟧ = reflect a (var zero) (var zero , now⇓)
+      v , v⇓ , ⟦v⟧ = ⟦f⟧ wk u ⟦u⟧
+      n , ⇓n = reify b v ⟦v⟧
+      ⇓λn = later⇓ (bind⇓ (λ x → now (lam x)) (bind⇓ readback v⇓ ⇓n) now⇓)
+    in lam n , ⇓λn
 
---   reflect : ∀{Γ} a (w : Ne Val Γ a) → nereadback w ⇓ → V⟦ a ⟧ (ne w)
---   reflect = {!!}
---   -- reflect ★        w  w⇓                 = w⇓
---   -- reflect (a ⇒ b)  w  (m , w⇓m) η u ⟦u⟧  =
---   --   let  n , ⇓n  = reify a u ⟦u⟧
---   --        m′      = nen≤ η m
---   --        ⇓m      = nereadback≤⇓ η w w⇓m
---   --        wu      = app (nev≤ η w) u
---   --        ⟦wu⟧    = reflect b wu  (app m′ n ,
---   --          bind⇓  (λ m → app m <$> readback u)
---   --          ⇓m
---   --          (bind⇓ (λ n → now (app m′ n)) ⇓n now⇓))
---   --          in   ne wu , now⇓ , ⟦wu⟧
+  reflect : ∀{Γ} a (w : Ne Val Γ a) → nereadback w ⇓ → V⟦ a ⟧ (ne w)
+  reflect a w w⇓ = w⇓
 
--- var↑           :  ∀{Γ a}(x : Var Γ a) → V⟦ a ⟧ ne (var x)
--- var↑ x         =  reflect _ (var x) (var x , now⇓)
+var↑           :  ∀{Γ a}(x : Var Γ a) → V⟦ a ⟧ ne (var x)
+var↑ x         =  reflect _ (var x) (var x , now⇓)
 
--- ⟦ide⟧          :  ∀ Γ → E⟦ Γ ⟧ (ide Γ)
--- ⟦ide⟧ ε        =  _
--- ⟦ide⟧ (Γ , a)  =  E⟦⟧≤ wk (ide Γ) (⟦ide⟧ Γ) , var↑ zero
+⟦ide⟧          :  ∀ Γ → E⟦ Γ ⟧ (ide Γ)
+⟦ide⟧ ε        =  _
+⟦ide⟧ (Γ , a)  =  E⟦⟧≤ wk (ide Γ) (⟦ide⟧ Γ) , var↑ zero
 
--- normalize        :  ∀ Γ a (t : Tm Γ a) → ∃ λ n → nf t ⇓ n
--- normalize Γ a t  =  let  v , v⇓ , ⟦v⟧  = term t (ide Γ) (⟦ide⟧ Γ)
---                          n , ⇓n        = reify a v ⟦v⟧
---                     in   n , bind⇓ readback v⇓ ⇓n
+normalize        :  ∀ Γ a (t : Tm Γ a) → ∃ λ n → nf t ⇓ n
+normalize Γ a t  =  let  v , v⇓ , ⟦v⟧  = term t (ide Γ) (⟦ide⟧ Γ)
+                         n , ⇓n        = reify a v ⟦v⟧
+                    in   n , bind⇓ readback v⇓ ⇓n

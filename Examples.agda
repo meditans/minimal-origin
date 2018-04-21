@@ -17,7 +17,7 @@ nex₁ = normalize (ε , ★) ★ ex₁
 ex₂ : Tm (ε , ★) (★ ⇒ ★)
 ex₂ = abs (app (abs (var (suc zero))) (var zero))
 
--- lam (ne (var zero)) , later⇓ (later⇓ (later⇓ now⇓))
+-- lam (ne (var zero)) , later⇓ (later⇓ now⇓)
 nex₂ : ∃ λ n → nf ex₂ ⇓ n
 nex₂ = normalize (ε , ★) (★ ⇒ ★) ex₂
 
@@ -25,7 +25,7 @@ nex₂ = normalize (ε , ★) (★ ⇒ ★) ex₂
 ex₃ : Tm (ε , ★ ⇒ ★) (★ ⇒ ★)
 ex₃ = app (abs (abs (app (var (suc zero)) (var zero)))) (var zero)
 
--- lam (ne (app (var (suc zero)) (ne (var zero)))) , later⇓ (later⇓ (later⇓ now⇓))
+-- lam (ne (app (var (suc zero)) (ne (var zero)))) , later⇓ (later⇓ now⇓)
 nex₃ : ∃ λ n → nf ex₃ ⇓ n
 nex₃ = normalize (ε , ★ ⇒ ★) (★ ⇒ ★) ex₃
 
@@ -34,7 +34,7 @@ nex₃ = normalize (ε , ★ ⇒ ★) (★ ⇒ ★) ex₃
 ex₄ : Tm (ε , ★) (★ ⇒ ★)
 ex₄ = app (abs (abs (var (suc zero)))) (var zero)
 
--- lam (ne (var (suc zero))) , later⇓ (later⇓ (later⇓ now⇓))
+-- lam (ne (var (suc zero))) , later⇓ (later⇓ now⇓)
 nex₄ : ∃ λ n → nf ex₄ ⇓ n
 nex₄ = normalize (ε , ★) (★ ⇒ ★) ex₄
 
@@ -43,7 +43,7 @@ nex₄ = normalize (ε , ★) (★ ⇒ ★) ex₄
 ex₅ : Tm ((ε , ★) , ★) (★ ⇒ ★)
 ex₅ = app (abs (abs (var zero))) (var (suc zero))
 
--- lam (ne (var zero)) , later⇓ (later⇓ (later⇓ now⇓))
+-- lam (ne (var zero)) , later⇓ (later⇓ now⇓)
 nex₅ : ∃ λ n → nf ex₅ ⇓ n
 nex₅ = normalize ((ε , ★) , ★) (★ ⇒ ★) ex₅
 
@@ -52,7 +52,7 @@ nex₅ = normalize ((ε , ★) , ★) (★ ⇒ ★) ex₅
 ex₆ : Tm (ε , ★) (★ ⇒ ★)
 ex₆ = abs (app (abs (app (abs (var zero)) (var zero))) (var zero))
 
--- lam (ne (var zero)) , later⇓ (later⇓ (later⇓ (later⇓ now⇓)))
+-- lam (ne (var zero)) , later⇓ (later⇓ (later⇓ now⇓))
 nex₆ : ∃ λ n → nf ex₆ ⇓ n
 nex₆ = normalize (ε , ★) (★ ⇒ ★) ex₆
 
@@ -60,6 +60,6 @@ nex₆ = normalize (ε , ★) (★ ⇒ ★) ex₆
 ex₇ : Tm (ε , ★ ⇒ ★) (★ ⇒ ★)
 ex₇ = var zero
 
--- lam (ne (app (var (suc zero)) (ne (var zero)))) , later⇓ now⇓
+-- ne (var zero) , now⇓
 nex₇ : ∃ λ n → nf ex₇ ⇓ n
 nex₇ = normalize (ε , ★ ⇒ ★) (★ ⇒ ★) ex₇
