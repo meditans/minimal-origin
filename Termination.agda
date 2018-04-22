@@ -302,21 +302,15 @@ mutual
   reify (lam t ρ) ⟦f⟧ =
     let
       u   = ne (var zero)
-      ⟦u⟧ = reflect (var zero) (var zero , now⇓)
+      ⟦u⟧ = var zero , now⇓
       v , v⇓ , ⟦v⟧ = ⟦f⟧ wk u ⟦u⟧
       n , ⇓n = reify v ⟦v⟧
       ⇓λn = later⇓ (bind⇓ (λ x → now (lam x)) (bind⇓ readback v⇓ ⇓n) now⇓)
     in lam n , ⇓λn
 
-  reflect : ∀{Γ a} (w : Ne Val Γ a) → nereadback w ⇓ → V (ne w)
-  reflect w w⇓ = w⇓
-
-var↑           :  ∀{Γ a}(x : Var Γ a) → V (ne (var x))
-var↑ x         =  reflect (var x) (var x , now⇓)
-
 ⟦ide⟧          :  ∀ Γ → E (ide Γ)
 ⟦ide⟧ ε        =  _
-⟦ide⟧ (Γ , a)  =  E≤ wk (ide Γ) (⟦ide⟧ Γ) , var↑ zero
+⟦ide⟧ (Γ , a)  =  E≤ wk (ide Γ) (⟦ide⟧ Γ) , var zero , now⇓
 
 normalize        :  ∀{a}(Γ : Cxt)(t : Tm Γ a) → ∃ λ n → nf t ⇓ n
 normalize Γ t = let  v , v⇓ , ⟦v⟧ = term t (ide Γ) (⟦ide⟧ Γ)
