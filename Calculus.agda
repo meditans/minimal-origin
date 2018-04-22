@@ -23,32 +23,31 @@ data Var : (Γ : Cxt) (a : Ty) → Set where
   zero  : ∀{Γ a}                  → Var (Γ , a) a
   suc   : ∀{Γ a b} (x : Var Γ a)  → Var (Γ , b) a
 
-data Tm (Γ : Cxt) : (a : Ty) → Set where
-  var  : ∀{a}    (x : Var Γ a)                    → Tm Γ a
-  abs  : ∀{a b}  (t : Tm (Γ , a) b)               → Tm Γ (a ⇒ b)
-  app  : ∀{a b}  (t : Tm Γ (a ⇒ b)) (u : Tm Γ a)  → Tm Γ b
+data Tm (Ψ Γ : Cxt) : (a : Ty) → Set where
+  var  : ∀{a}    (x : Var Γ a)                        → Tm Ψ Γ a
+  abs  : ∀{a b}  (t : Tm Ψ (Γ , a) b)                 → Tm Ψ Γ (a ⇒ b)
+  app  : ∀{a b}  (t : Tm Ψ Γ (a ⇒ b)) (u : Tm Ψ Γ a)  → Tm Ψ Γ b
 
-
-data Ne (Ξ : Cxt → Ty → Set)(Γ : Cxt) : Ty → Set where
-  var  : ∀{a}    → Var Γ a                 → Ne Ξ Γ a
-  app  : ∀{a b}  → Ne Ξ Γ (a ⇒ b) → Ξ Γ a  → Ne Ξ Γ b
+data Ne (Ξ : Cxt → Cxt → Ty → Set)(Ψ Γ : Cxt) : Ty → Set where
+  var  : ∀{a}    → Var Γ a                     → Ne Ξ Ψ Γ a
+  app  : ∀{a b}  → Ne Ξ Ψ Γ (a ⇒ b) → Ξ Ψ Γ a  → Ne Ξ Ψ Γ b
 
 mutual
-  data Val (Δ : Cxt) : (a : Ty) → Set where
-    ne   : ∀{a}      (w : Ne Val Δ a)                  → Val Δ a
-    lam  : ∀{Γ a b}  (t : Tm (Γ , a) b) (ρ : Env Δ Γ)  → Val Δ (a ⇒ b)
+  data Val (Ψ Δ : Cxt) : (a : Ty) → Set where
+    ne   : ∀{a}      (w : Ne Val Ψ Δ a)                    → Val Ψ Δ a
+    lam  : ∀{Γ a b}  (t : Tm Ψ (Γ , a) b) (ρ : Env Ψ Δ Γ)  → Val Ψ Δ (a ⇒ b)
 
-  data Env (Δ : Cxt) : (Γ : Cxt) → Set where
-    ε    :                                        Env Δ ε
-    _,_  : ∀ {Γ a} (ρ : Env Δ Γ) (v : Val Δ a) →  Env Δ (Γ , a)
+  data Env (Ψ Δ : Cxt) : (Γ : Cxt) → Set where
+    ε    :                                            Env Ψ Δ ε
+    _,_  : ∀ {Γ a} (ρ : Env Ψ Δ Γ) (v : Val Ψ Δ a) →  Env Ψ Δ (Γ , a)
 
-lookup                   :  ∀ {Γ Δ a} → Var Γ a → Env Δ Γ → Val Δ a
+lookup                   :  ∀ {Ψ Γ Δ a} → Var Γ a → Env Ψ Δ Γ → Val Ψ Δ a
 lookup zero     (ρ , v)  =  v
 lookup (suc x)  (ρ , v)  =  lookup x ρ
 
-eval   :  ∀{i Γ Δ b}    → Tm Γ b         → Env Δ Γ             → Delay i (Val Δ b)
-apply  :  ∀{i Δ a b}    → Val Δ (a ⇒ b)             → Val Δ a  → Delay i (Val Δ b)
-beta   :  ∀{i Γ Δ a b}  → Tm (Γ , a) b   → Env Δ Γ  → Val Δ a  → ∞Delay i (Val Δ b)
+eval   :  ∀{i Ψ Γ Δ b}    → Tm Ψ Γ b         → Env Ψ Δ Γ               → Delay i (Val Ψ Δ b)
+apply  :  ∀{i Ψ Δ a b}    → Val Ψ Δ (a ⇒ b)               → Val Ψ Δ a  → Delay i (Val Ψ Δ b)
+beta   :  ∀{i Ψ Γ Δ a b}  → Tm Ψ (Γ , a) b   → Env Ψ Δ Γ  → Val Ψ Δ a  → ∞Delay i (Val Ψ Δ b)
 
 eval (var x) e     = now (lookup x e)
 eval (abs t) e     = now (lam t e)
@@ -59,9 +58,9 @@ apply (lam t ρ) v = later (beta t ρ v)
 
 force (beta t ρ v) = eval t (ρ , v)
 
-data Nf (Γ : Cxt) : Ty → Set where
-  lam  : ∀{a b}  (n  : Nf (Γ , a) b)  → Nf Γ (a ⇒ b)
-  ne   : ∀{a}    (m  : Ne Nf Γ a)     → Nf Γ a
+data Nf (Ψ Γ : Cxt) : Ty → Set where
+  lam  : ∀{a b}  (n  : Nf Ψ (Γ , a) b)  → Nf Ψ Γ (a ⇒ b)
+  ne   : ∀{a}    (m  : Ne Nf Ψ Γ a)     → Nf Ψ Γ a
 
 data _≤_ : (Γ Δ : Cxt) → Set where
   id    : ∀{Γ}              → Γ ≤ Γ
@@ -80,12 +79,12 @@ lift η  • lift η′  =  lift  (η • η′)
 η•id (weak η) = cong weak (η•id η)
 η•id (lift η) = refl
 
-var≤  : ∀{Γ Δ} → Γ ≤ Δ → ∀{a}  → Var Δ a     → Var Γ a
-val≤  : ∀{Γ Δ} → Γ ≤ Δ → ∀{a}  → Val Δ a     → Val Γ a
-env≤  : ∀{Γ Δ} → Γ ≤ Δ → ∀{E}  → Env Δ E     → Env Γ E
-nev≤  : ∀{Γ Δ} → Γ ≤ Δ → ∀{a}  → Ne Val Δ a  → Ne Val Γ a
-nf≤   : ∀{Γ Δ} → Γ ≤ Δ → ∀{a}  → Nf Δ a      → Nf Γ a
-nen≤  : ∀{Γ Δ} → Γ ≤ Δ → ∀{a}  → Ne Nf Δ a   → Ne Nf Γ a
+var≤  : ∀{Γ Δ}   → Γ ≤ Δ → ∀{a}  → Var Δ a       → Var Γ a
+val≤  : ∀{Ψ Γ Δ} → Γ ≤ Δ → ∀{a}  → Val Ψ Δ a     → Val Ψ Γ a
+env≤  : ∀{Ψ Γ Δ} → Γ ≤ Δ → ∀{E}  → Env Ψ Δ E     → Env Ψ Γ E
+nev≤  : ∀{Ψ Γ Δ} → Γ ≤ Δ → ∀{a}  → Ne Val Ψ Δ a  → Ne Val Ψ Γ a
+nf≤   : ∀{Ψ Γ Δ} → Γ ≤ Δ → ∀{a}  → Nf Ψ Δ a      → Nf Ψ Γ a
+nen≤  : ∀{Ψ Γ Δ} → Γ ≤ Δ → ∀{a}  → Ne Nf Ψ Δ a   → Ne Nf Ψ Γ a
 
 var≤ id        x      = x
 var≤ (weak η)  x      = suc (var≤ η x)
@@ -110,12 +109,12 @@ nen≤ η (app m n) = app (nen≤ η m) (nf≤ η n)
 wk       :  ∀{Γ a} → (Γ , a) ≤ Γ
 wk       =  weak id
 
-weakVal : ∀{Δ a c} → Val Δ c → Val (Δ , a) c
+weakVal : ∀{Ψ Δ a c} → Val Ψ Δ c → Val Ψ (Δ , a) c
 weakVal  =  val≤ wk
 
-readback    : ∀{i Γ a}      → Val Γ a                  →  Delay i (Nf Γ a)
-nereadback  : ∀{i Γ a}      → Ne Val Γ a               →  Delay i (Ne Nf Γ a)
-lamreadback : ∀{i Γ Γ₁ a b} → Tm (Γ₁ , a) b → Env Γ Γ₁ → ∞Delay i (Nf (Γ , a) b)
+readback    : ∀{i Ψ Γ a}      → Val Ψ Γ a                    →  Delay i (Nf Ψ Γ a)
+nereadback  : ∀{i Ψ Γ a}      → Ne Val Ψ Γ a                 →  Delay i (Ne Nf Ψ Γ a)
+lamreadback : ∀{i Ψ Γ Γ₁ a b} → Tm Ψ (Γ₁ , a) b → Env Ψ Γ Γ₁ → ∞Delay i (Nf Ψ (Γ , a) b)
 
 readback (ne w)    = ne  <$> nereadback w
 readback (lam t ρ) = lam <$> later (lamreadback t ρ)
@@ -125,10 +124,9 @@ nereadback (app w v)     = nereadback w >>= λ m → app m <$> readback v
 
 force (lamreadback t ρ)  = readback =<< eval t (env≤ wk ρ , ne (var zero))
 
-ide          :  ∀ Γ → Env Γ Γ
-ide ε        =  ε
-ide (Γ , a)  =  env≤ wk (ide Γ) , ne (var zero)
+ide            :  ∀ Ψ Γ → Env Ψ Γ Γ
+ide Ψ ε        =  ε
+ide Ψ (Γ , a)  =  env≤ wk (ide Ψ Γ) , ne (var zero)
 
-nf        :  ∀{Γ a}(t : Tm Γ a) → Delay ∞ (Nf Γ a)
-nf {Γ} t  =  eval t (ide Γ) >>= readback
-
+nf            :  ∀{Ψ Γ a}(t : Tm Ψ Γ a) → Delay ∞ (Nf Ψ Γ a)
+nf {Ψ} {Γ} t  =  eval t (ide Ψ Γ) >>= readback
