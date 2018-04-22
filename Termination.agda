@@ -35,6 +35,7 @@ val≤-id (ne t) = cong ne (nev≤-id t)
 val≤-id (lam t ρ) = cong (lam t) (env≤-id ρ)
 
 nev≤-id (var x)   = refl
+nev≤-id (con x)   = refl
 nev≤-id (app t u) = cong₂ app (nev≤-id t) (val≤-id u)
 
 var≤-•  :  ∀{Δ Δ′ Δ″ a} (η : Δ ≤ Δ′) (η′ : Δ′ ≤ Δ″) (x : Var Δ″ a) →
@@ -63,6 +64,7 @@ val≤-• η η′ (ne w) = cong ne (nev≤-• η η′ w)
 val≤-• η η′ (lam t ρ) = cong (lam t) (env≤-• η η′ ρ)
 
 nev≤-• η η′ (var x)   = cong var (var≤-• η η′ x)
+nev≤-• η η′ (con x)   = refl
 nev≤-• η η′ (app w v) = cong₂ app (nev≤-• η η′ w) (val≤-• η η′ v)
 
 lookup≤  :  ∀ {Ψ Γ Δ Δ′ a} (x : Var Γ a) (ρ : Env Ψ Δ Γ) (η : Δ′ ≤ Δ) →
@@ -81,6 +83,7 @@ lookup≤ zero    (ρ , v) η = refl
 lookup≤ (suc x) (ρ , v) η = lookup≤ x ρ η
 
 eval≤ (var x)   ρ η rewrite lookup≤ x ρ η = ∼now _
+eval≤ (con x)   ρ η = ∼now _
 eval≤ (abs t)   ρ η = ∼now _
 eval≤ (app t u) ρ η =
   proof
@@ -138,6 +141,7 @@ lamreadback≤  :  ∀{i Ψ Γ Γ₁ Δ a b} (η : Δ ≤ Γ) (t : Tm Ψ (Γ₁ 
                  (nf≤ (lift η) ∞<$> lamreadback t ρ) ∞∼⟨ i ⟩∼ (lamreadback t (env≤ η ρ))
 
 nereadback≤ η (var x)   = ∼now _
+nereadback≤ η (con x)   = ∼now _
 nereadback≤ η (app t u) =
   proof
   ((nereadback t >>=
@@ -272,6 +276,9 @@ reify (lam t ρ) ⟦f⟧ =
 ⟦var⟧ zero    (_ , v)  (_ , v⇓)  = v , now⇓ , v⇓
 ⟦var⟧(suc x)  (ρ , _)  (θ , _ )  = ⟦var⟧ x ρ θ
 
+⟦con⟧ : ∀{Ψ Δ Γ a} (x : Var Ψ a) (ρ : Env Ψ Δ Γ) → E ρ → C {Γ = Δ} (now (ne (con x)))
+⟦con⟧ x ρ θ  =  ne (con x) , now⇓ , con x , now⇓
+
 ⟦abs⟧    :  ∀ {Ψ Δ Γ a b} (t : Tm Ψ (Γ , a) b) (ρ : Env Ψ Δ Γ) (θ : E ρ) →
             (∀{Δ′}(η : Δ′ ≤ Δ)(u : Val Ψ Δ′ a)(u⇓ : V u)
             → C (eval t (env≤ η ρ , u)))
@@ -303,6 +310,7 @@ reify (lam t ρ) ⟦f⟧ =
 
 term                 :  ∀ {Ψ Δ Γ a} (t : Tm Ψ Γ a) (ρ : Env Ψ Δ Γ) (θ : E ρ) → C (eval t ρ)
 term (var x)    ρ θ  =  ⟦var⟧ x ρ θ
+term (con x)    ρ θ  =  ⟦con⟧ x ρ θ
 term (abs t)    ρ θ  =  ⟦abs⟧ t ρ θ (λ η u p → term t (env≤ η ρ , u) (E≤ η ρ θ , p))
 term (app t u)  ρ θ  =  ⟦app⟧ (term t ρ θ) (term u ρ θ)
 

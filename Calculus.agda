@@ -25,11 +25,13 @@ data Var : (Γ : Cxt) (a : Ty) → Set where
 
 data Tm (Ψ Γ : Cxt) : (a : Ty) → Set where
   var  : ∀{a}    (x : Var Γ a)                        → Tm Ψ Γ a
+  con  : ∀{a}    (x : Var Ψ a)                        → Tm Ψ Γ a
   abs  : ∀{a b}  (t : Tm Ψ (Γ , a) b)                 → Tm Ψ Γ (a ⇒ b)
   app  : ∀{a b}  (t : Tm Ψ Γ (a ⇒ b)) (u : Tm Ψ Γ a)  → Tm Ψ Γ b
 
 data Ne (Ξ : Cxt → Cxt → Ty → Set)(Ψ Γ : Cxt) : Ty → Set where
   var  : ∀{a}    → Var Γ a                     → Ne Ξ Ψ Γ a
+  con  : ∀{a}    → Var Ψ a                     → Ne Ξ Ψ Γ a
   app  : ∀{a b}  → Ne Ξ Ψ Γ (a ⇒ b) → Ξ Ψ Γ a  → Ne Ξ Ψ Γ b
 
 mutual
@@ -50,6 +52,7 @@ apply  :  ∀{i Ψ Δ a b}    → Val Ψ Δ (a ⇒ b)               → Val Ψ �
 beta   :  ∀{i Ψ Γ Δ a b}  → Tm Ψ (Γ , a) b   → Env Ψ Δ Γ  → Val Ψ Δ a  → ∞Delay i (Val Ψ Δ b)
 
 eval (var x) e     = now (lookup x e)
+eval (con x) e     = now (ne (con x))
 eval (abs t) e     = now (lam t e)
 eval (app t₁ t₂) e = eval t₁ e >>= λ v₁ → eval t₂ e >>= λ v₂ → apply v₁ v₂
 
@@ -98,12 +101,14 @@ env≤ η ε       = ε
 env≤ η (ρ , v) = env≤ η ρ , val≤ η v
 
 nev≤ η (var x)   = var (var≤ η x)
+nev≤ η (con x)   = con x
 nev≤ η (app w v) = app (nev≤ η w) (val≤ η v)
 
 nf≤ η (ne m)   = ne (nen≤ η m)
 nf≤ η (lam n)  = lam (nf≤ (lift η) n)
 
 nen≤ η (var x)   = var (var≤ η x)
+nen≤ η (con x)   = con x
 nen≤ η (app m n) = app (nen≤ η m) (nf≤ η n)
 
 wk       :  ∀{Γ a} → (Γ , a) ≤ Γ
@@ -120,6 +125,7 @@ readback (ne w)    = ne  <$> nereadback w
 readback (lam t ρ) = lam <$> later (lamreadback t ρ)
 
 nereadback (var x)       = now (var x)
+nereadback (con x)       = now (con x)
 nereadback (app w v)     = nereadback w >>= λ m → app m <$> readback v
 
 force (lamreadback t ρ)  = readback =<< eval t (env≤ wk ρ , ne (var zero))
