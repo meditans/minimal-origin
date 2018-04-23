@@ -33,6 +33,7 @@ data Ne (Ξ : Cxt → Cxt → Ty → Set)(Ψ Γ : Cxt) : Ty → Set where
   var  : ∀{a}    → Var Γ a                     → Ne Ξ Ψ Γ a
   con  : ∀{a}    → Var Ψ a                     → Ne Ξ Ψ Γ a
   app  : ∀{a b}  → Ne Ξ Ψ Γ (a ⇒ b) → Ξ Ψ Γ a  → Ne Ξ Ψ Γ b
+  app■ : ∀{a b}  → Ξ Ψ Γ (a ⇒ b)    → Ξ Ψ Γ a  → Ne Ξ Ψ Γ b
 
 mutual
   data Val (Ψ Δ : Cxt) : (a : Ty) → Set where
@@ -100,16 +101,18 @@ val≤ η (lam t ρ)  = lam t (env≤ η ρ)
 env≤ η ε       = ε
 env≤ η (ρ , v) = env≤ η ρ , val≤ η v
 
-nev≤ η (var x)   = var (var≤ η x)
-nev≤ η (con x)   = con x
-nev≤ η (app w v) = app (nev≤ η w) (val≤ η v)
+nev≤ η (var x)    = var (var≤ η x)
+nev≤ η (con x)    = con x
+nev≤ η (app  w v) = app  (nev≤ η w) (val≤ η v)
+nev≤ η (app■ w v) = app■ (val≤ η w) (val≤ η v)
 
 nf≤ η (ne m)   = ne (nen≤ η m)
 nf≤ η (lam n)  = lam (nf≤ (lift η) n)
 
-nen≤ η (var x)   = var (var≤ η x)
-nen≤ η (con x)   = con x
-nen≤ η (app m n) = app (nen≤ η m) (nf≤ η n)
+nen≤ η (var x)    = var (var≤ η x)
+nen≤ η (con x)    = con x
+nen≤ η (app  m n)  = app  (nen≤ η m) (nf≤ η n)
+nen≤ η (app■ m n)  = app■ (nf≤ η m)  (nf≤ η n)
 
 wk       :  ∀{Γ a} → (Γ , a) ≤ Γ
 wk       =  weak id
@@ -126,7 +129,8 @@ readback (lam t ρ) = lam <$> later (lamreadback t ρ)
 
 nereadback (var x)       = now (var x)
 nereadback (con x)       = now (con x)
-nereadback (app w v)     = nereadback w >>= λ m → app m <$> readback v
+nereadback (app  w v)    = nereadback w >>= λ m  → app m <$> readback v
+nereadback (app■ w v)    = readback w   >>= λ nw → app■ nw <$> readback v
 
 force (lamreadback t ρ)  = readback =<< eval t (env≤ wk ρ , ne (var zero))
 

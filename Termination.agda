@@ -36,7 +36,8 @@ val≤-id (lam t ρ) = cong (lam t) (env≤-id ρ)
 
 nev≤-id (var x)   = refl
 nev≤-id (con x)   = refl
-nev≤-id (app t u) = cong₂ app (nev≤-id t) (val≤-id u)
+nev≤-id (app  t u) = cong₂ app  (nev≤-id t) (val≤-id u)
+nev≤-id (app■ t u) = cong₂ app■ (val≤-id t) (val≤-id u)
 
 var≤-•  :  ∀{Δ Δ′ Δ″ a} (η : Δ ≤ Δ′) (η′ : Δ′ ≤ Δ″) (x : Var Δ″ a) →
            var≤ η (var≤ η′ x) ≡ var≤ (η • η′) x
@@ -63,9 +64,10 @@ env≤-• η η′ (ρ , v) = cong₂ _,_ (env≤-• η η′ ρ) (val≤-• 
 val≤-• η η′ (ne w) = cong ne (nev≤-• η η′ w)
 val≤-• η η′ (lam t ρ) = cong (lam t) (env≤-• η η′ ρ)
 
-nev≤-• η η′ (var x)   = cong var (var≤-• η η′ x)
-nev≤-• η η′ (con x)   = refl
-nev≤-• η η′ (app w v) = cong₂ app (nev≤-• η η′ w) (val≤-• η η′ v)
+nev≤-• η η′ (var x)    = cong var (var≤-• η η′ x)
+nev≤-• η η′ (con x)    = refl
+nev≤-• η η′ (app w v)  = cong₂ app  (nev≤-• η η′ w) (val≤-• η η′ v)
+nev≤-• η η′ (app■ w v) = cong₂ app■ (val≤-• η η′ w) (val≤-• η η′ v)
 
 lookup≤  :  ∀ {Ψ Γ Δ Δ′ a} (x : Var Γ a) (ρ : Env Ψ Δ Γ) (η : Δ′ ≤ Δ) →
             val≤ η (lookup x ρ) ≡ lookup x (env≤ η ρ)
@@ -186,6 +188,10 @@ nereadback≤ η (app t u) =
      (λ t₁ → readback (val≤ η u) >>= (λ n → now (app t₁ n))))
   ∎
   where open ∼-Reasoning
+
+-- I'll leave this proof for when the structure of the normal forms is
+-- completely set.
+nereadback≤ η (app■ t u) = {!!}
 
 readback≤ η (ne w) =
   proof
